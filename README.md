@@ -3,7 +3,7 @@
 Python scripts for controlling electronics test equipment.
 
 These are scripts for connecting to random bits of equipment.  I hope
-they save time for somebody.  
+they save time for somebody.
 
 Each script is standalone and self-contained but require
 [pySerial](http://pyserial.sourceforge.net/).  On Ubuntu, "`apt-get
@@ -34,3 +34,7 @@ MAS-343 without temperature measurement.
 meter that was lying around the lab.  I haven't seen it around in a
 while -- it was in a yellow case and didn't have the Radio Shack part
 number on it, if I recall correctly.
+
+[hm305.py](hm305.py) controls the HM305P power supply from Hanmatek (and others).  These supplies are USB controllable, but they just show as an CH341 serial port.  The protocol is described by http://nightflyerfireworks.com/home/fun-with-cheap-programable-power-supplies
+
+hm305.py is Python 3 only. The other scripts are Python 2 only. I no longer have the hardware for them, so I am unwilling to attempt a port that I cannot test.
