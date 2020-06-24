@@ -5,7 +5,7 @@ import struct
 class CRCError(Exception): pass
 
 def rint(x):
-    return int(float(x))
+    return int(round(x))
 
 class HM305:
     def __init__(self, fd = None):
