@@ -154,7 +154,7 @@ class HM305:
 
     @property
     def hw_model(self):
-        return hex(self.x(0x03))
+        return self.x(0x03)
 
     @property
     def hw_class(self):
