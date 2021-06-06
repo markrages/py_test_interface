@@ -41,56 +41,56 @@ class Register(Enum):
     """
 
     #
-    PowerSwitch = 0x0001  # Power Output 0:OFF, 1:ON
-    ProtectStat = 0x0002  #
-    Model = 0x0003  # decimal number representation of nominal max volts&amps
-    Class = 0x0004  # 2char ASCII string, mostly tells how many digits in display,
+    POWER_SWITCH = 0x0001  # Power Output 0:OFF, 1:ON
+    PROTECT_STAT = 0x0002  #
+    MODEL = 0x0003  # decimal number representation of nominal max volts&amps
+    CLASS = 0x0004  # 2char ASCII string, mostly tells how many digits in display,
     #                 and whether linear or switching
-    Decimals = (
+    DECIMALS = (
         0x0005  # For a value of 0x0XYZ, maximum digits after decimal for V=X, I=Y P=Z.
     )
     # 10^X etc used as scaler for reg values.
-    Voltage = 0x0010  # Output Voltage actual
-    Current = 0x0011  # Output Current actual
-    Power_x4 = 0x0012  # Output Power actual
-    PowerCal_x4 = 0x0014  # Raw calculation of Voltage*Current values
+    VOLTAGE = 0x0010  # Output Voltage actual
+    CURRENT = 0x0011  # Output Current actual
+    POWER_X4 = 0x0012  # Output Power actual
+    POWERCAL_X4 = 0x0014  # Raw calculation of Voltage*Current values
     #                       (so its scaled by 10^5, instead of 10^3)
-    ProtectVol = 0x0020  # OVP setting
-    ProtectCur = 0x0021  # OCP setting
-    ProtectPow_x4 = 0x0022  # OPP setting. Writable, but doesn't affect anything?
+    PROTECT_VOL = 0x0020  # OVP setting
+    PROTECT_CUR = 0x0021  # OCP setting
+    PROTECT_POW_X4 = 0x0022  # OPP setting. Writable, but doesn't affect anything?
     #                         Is there actually any way to toggle OPP on/off?
-    SetVol = 0x0030  # Set Const Voltage
-    SetCur = 0x0031  # Set Const Current
-    SetTimeSpan = 0x0032  # Time Span setting pulled from last selected M preset.
+    SET_VOL = 0x0030  # Set Const Voltage
+    SET_CUR = 0x0031  # Set Const Current
+    SET_TIMESPAN = 0x0032  # Time Span setting pulled from last selected M preset.
     #                       List mode only. Counts down, corresponding with displayed
     #                       seconds (HM310T) when List mode on. Read-only.
 
     # "Shortcut Key" settings placed into their own Enum, see below
-    PowerStat = 0x8801  # Always = 10? What does this mean?
-    defaultShow = 0x8802  # Always = 0? What does this mean?
+    POWER_STAT = 0x8801  # Always = 10? What does this mean?
+    DEFAULT_SHOW = 0x8802  # Always = 0? What does this mean?
     SCP = 0x8803  # Always = 0? Manual claims to have Short Circuit Protection, whatever that means.
     #               Is it even possible to trigger?
-    Buzzer = 0x8804  # Buzzer toggle 0: Disable, 1: Enable
-    DeviceAddr = 0x9999  # Modbus address, Default = 1
+    BUZZER = 0x8804  # Buzzer toggle 0: Disable, 1: Enable
+    DEVICE_ADDR = 0x9999  # Modbus address, Default = 1
 
     # The following are listed as 4byte wide registers, but the 2nd word are only ever 0 or 1
     # This makes me think second word is to indicate enable/disable of the limit, although
     # that doesn't explain "IL" being enabled.
     UL = 0xC110  # Always = 10?    Minimum allowable output/set Voltage?
     #              (No lower limit actually observed)
-    UL_en = 0xC111  # Always = 0?     Assuming this is disabled
+    UL_EN = 0xC111  # Always = 0?     Assuming this is disabled
     UH = 0xC11E  # Always = 3200?  Maximum allowable set Voltage
     #              (it matches with upper limit during knob adjustment)
-    UH_en = 0xC11F  # Always = 1?
+    UH_EN = 0xC11F  # Always = 1?
     IL = 0xC120  # Always = 21?    Minimum allowable output/set Current?
     #              (No lower limit actually observed)
-    IL_en = 0xC121  # Always = 1?     No lower current limit observed,
+    IL_EN = 0xC121  # Always = 1?     No lower current limit observed,
     #                 DESPITE this set to 1, so maybe its not "enable"
     IH = 0xC12E  # Always = 10100? Maximum allowable set Current
     #              (it matches with upper limit during knob adjustment)
-    IH_en = 0xC12F  # Always = 1?
+    IH_EN = 0xC12F  # Always = 1?
 
-    SDTime = 0xCCCC  # Always = 0? (IIRC)
+    SD_TIME = 0xCCCC  # Always = 0? (IIRC)
 
 
 @unique
@@ -104,30 +104,30 @@ class ShortCutKeySettings(Enum):
         Enable:   1, 1, 1, 1, 1, 1  (TODO: Re-check the defaults for these registers?)
     """
 
-    M1_Voltage = 0x1000
-    M1_Current = 0x1001
-    M1_TimeSpan = 0x1002
-    M1_Enable = 0x1003
-    M2_Voltage = 0x1010
-    M2_Current = 0x1011
-    M2_TimeSpan = 0x1012
-    M2_Enable = 0x1013
-    M3_Voltage = 0x1020
-    M3_Current = 0x1021
-    M3_TimeSpan = 0x1022
-    M3_Enable = 0x1023
-    M4_Voltage = 0x1030
-    M4_Current = 0x1031
-    M4_TimeSpan = 0x1032
-    M4_Enable = 0x1033
-    M5_Voltage = 0x1040
-    M5_Current = 0x1041
-    M5_TimeSpan = 0x1042
-    M5_Enable = 0x1043
-    M6_Voltage = 0x1050
-    M6_Current = 0x1051
-    M6_TimeSpan = 0x1052
-    M6_Enable = 0x1053
+    M1_VOLTAGE = 0x1000
+    M1_CURRENT = 0x1001
+    M1_TIMESPAN = 0x1002
+    M1_ENABLE = 0x1003
+    M2_VOLTAGE = 0x1010
+    M2_CURRENT = 0x1011
+    M2_TIMESPAN = 0x1012
+    M2_ENABLE = 0x1013
+    M3_VOLTAGE = 0x1020
+    M3_CURRENT = 0x1021
+    M3_TIMESPAN = 0x1022
+    M3_ENABLE = 0x1023
+    M4_VOLTAGE = 0x1030
+    M4_CURRENT = 0x1031
+    M4_TIMESPAN = 0x1032
+    M4_ENABLE = 0x1033
+    M5_VOLTAGE = 0x1040
+    M5_CURRENT = 0x1041
+    M5_TIMESPAN = 0x1042
+    M5_ENABLE = 0x1043
+    M6_VOLTAGE = 0x1050
+    M6_CURRENT = 0x1051
+    M6_TIMESPAN = 0x1052
+    M6_ENABLE = 0x1053
 
 
 @unique
