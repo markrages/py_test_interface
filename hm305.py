@@ -1,19 +1,23 @@
 #!/usr/bin/env python3
+""" Utility to control and monitor eTommens eTM-xxxxP compatible power supplies
+    See : https://sigrok.org/wiki/ETommens_eTM-xxxxP_Series
+"""
+from enum import Enum, unique
 import struct
 import serial
-from enum import Enum, unique
 
 
 class CRCError(Exception):
-    pass
+    """ CRCError class? """
 
 
-def rint(x):
-    return int(round(x))
+def rint(integer):
+    """ Returns the rounded integer """
+    return int(round(integer))
 
 
 def digit_str(value, max_decimals, disp_digits=4):
-    """Fixed-width output of numeric value, to simulate segmented display behavior"""
+    """ Fixed-width output of numeric value, to simulate segmented display behavior """
     int_digits = (
         1 if value < 10 else (2 if value < 100 else 3)
     )  # digits before decimal point
@@ -32,45 +36,58 @@ class Register(Enum):
 
     Some registers seemed to hold constant values that were never observed to change.
     I've commented these as "Always = X?" (with X being unsigned decimal representation).
-    The "?" is since it's always unknown if they can still change under some specific conditions that I did not test.
+    The "?" is since it's always unknown if they can still change under some specific
+    conditions that I did not test.
     """
 
     #
     PowerSwitch = 0x0001  # Power Output 0:OFF, 1:ON
     ProtectStat = 0x0002  #
     Model = 0x0003  # decimal number representation of nominal max volts&amps
-    Class = 0x0004  # 2char ASCII string, mostly tells how many digits in display, and whether linear or switching
-    Decimals = 0x0005  # For a value of 0x0XYZ, maximum digits after decimal for V=X, I=Y P=Z.  10^X etc used as scaler for reg values.
+    Class = 0x0004  # 2char ASCII string, mostly tells how many digits in display,
+    #                 and whether linear or switching
+    Decimals = (
+        0x0005  # For a value of 0x0XYZ, maximum digits after decimal for V=X, I=Y P=Z.
+    )
+    # 10^X etc used as scaler for reg values.
     Voltage = 0x0010  # Output Voltage actual
     Current = 0x0011  # Output Current actual
     Power_x4 = 0x0012  # Output Power actual
-    PowerCal_x4 = 0x0014  # Raw calculation of Voltage*Current values (so its scaled by 10^5, instead of 10^3)
+    PowerCal_x4 = 0x0014  # Raw calculation of Voltage*Current values
+    #                       (so its scaled by 10^5, instead of 10^3)
     ProtectVol = 0x0020  # OVP setting
     ProtectCur = 0x0021  # OCP setting
-    ProtectPow_x4 = 0x0022  # OPP setting. Writable, but doesn't affect anything?  Is there actually any way to toggle OPP on/off?
+    ProtectPow_x4 = 0x0022  # OPP setting. Writable, but doesn't affect anything?
+    #                         Is there actually any way to toggle OPP on/off?
     SetVol = 0x0030  # Set Const Voltage
     SetCur = 0x0031  # Set Const Current
-    SetTimeSpan = (
-        0x0032  # Time Span setting pulled from last selected M preset. List mode only.
-    )
-    # Counts down, corresponding with displayed seconds (HM310T) when List mode on.  read only.
+    SetTimeSpan = 0x0032  # Time Span setting pulled from last selected M preset.
+    #                       List mode only. Counts down, corresponding with displayed
+    #                       seconds (HM310T) when List mode on. Read-only.
 
     # "Shortcut Key" settings placed into their own Enum, see below
     PowerStat = 0x8801  # Always = 10? What does this mean?
     defaultShow = 0x8802  # Always = 0? What does this mean?
-    SCP = 0x8803  # Always = 0? Manual claims to have Short Circuit Protection, whatever that means.  Is it even possible to trigger?
+    SCP = 0x8803  # Always = 0? Manual claims to have Short Circuit Protection, whatever that means.
+    #               Is it even possible to trigger?
     Buzzer = 0x8804  # Buzzer toggle 0: Disable, 1: Enable
     DeviceAddr = 0x9999  # Modbus address, Default = 1
 
     # The following are listed as 4byte wide registers, but the 2nd word are only ever 0 or 1
-    # This makes me think second word is to indicate enable/disable of the limit, although that doesn't explain "IL" being enabled.
-    UL = 0xC110  # Always = 10?    Minimum allowable output/set Voltage? (No lower limit actually observed)
+    # This makes me think second word is to indicate enable/disable of the limit, although
+    # that doesn't explain "IL" being enabled.
+    UL = 0xC110  # Always = 10?    Minimum allowable output/set Voltage?
+    #              (No lower limit actually observed)
     UL_en = 0xC111  # Always = 0?     Assuming this is disabled
-    UH = 0xC11E  # Always = 3200?  Maximum allowable set Voltage (it matches with upper limit during knob adjustment)
+    UH = 0xC11E  # Always = 3200?  Maximum allowable set Voltage
+    #              (it matches with upper limit during knob adjustment)
     UH_en = 0xC11F  # Always = 1?
-    IL = 0xC120  # Always = 21?    Minimum allowable output/set Current? (No lower limit actually observed)
-    IL_en = 0xC121  # Always = 1?     No lower current limit observed, DESPITE this set to 1, so maybe its not "enable"
-    IH = 0xC12E  # Always = 10100? Maximum allowable set Current (it matches with upper limit during knob adjustment)
+    IL = 0xC120  # Always = 21?    Minimum allowable output/set Current?
+    #              (No lower limit actually observed)
+    IL_en = 0xC121  # Always = 1?     No lower current limit observed,
+    #                 DESPITE this set to 1, so maybe its not "enable"
+    IH = 0xC12E  # Always = 10100? Maximum allowable set Current
+    #              (it matches with upper limit during knob adjustment)
     IH_en = 0xC12F  # Always = 1?
 
     SDTime = 0xCCCC  # Always = 0? (IIRC)
@@ -84,7 +101,7 @@ class ShortCutKeySettings(Enum):
         Voltage: (1, 3, 5, 7, 9,10) / 10 * (UH =  3200) => (320,960,1600,2240,2880,3200)
         Current: (1, 3, 5, 7, 9,10) / 10 * (UL = 10100) => (1010,3030,5050,7070,9090,10100)
         Seconds: 10,11,12,13,14,15
-        Enable:   1, 1, 1, 1, 1, 1  I think?      (I think... I messed with List buttons before checking these registers, so )
+        Enable:   1, 1, 1, 1, 1, 1  (TODO: Re-check the defaults for these registers?)
     """
 
     M1_Voltage = 0x1000
@@ -129,31 +146,40 @@ class Undoc(Enum):
 
     MYS_A010 = 0xA010  # Duplicate of Voltage(0x0010) ?
     MYS_A011 = 0xA011  # Duplicate of Current(0x0011) ?
-    MYS_A012 = 0xA012  # Output status?  2/4/6 seem to correspond to Off/CC/CV.  Couldn't produce any other values.
+    MYS_A012 = 0xA012  # Output status?  2/4/6 seem to correspond to Off/CC/CV.
+    #                    Couldn't produce any other values.
     MYS_A020 = 0xA020  # Duplicate of SetVoltage 0x0030 ?
     MYS_A021 = 0xA021  # Duplicate of SetCurrent 0x0031
     MYS_A022 = 0xA022  # Duplicate of MYS_A012 ?
 
     MYS_C210 = 0xC210  # Always = 10? Duplicate of UL(0xC110) ?
     MYS_C211 = 0xC211  # Always = 0?
-    MYS_C214 = 0xC214  # Always = 960?  3/10ths of UH (same as original M2 Volts, but does not change when M2 edited)
+    MYS_C214 = 0xC214  # Always = 960?  3/10ths of UH (same as original M2 Volts,
+    #                    but does not change when M2 edited)
     MYS_C215 = 0xC215  # Always = 1?
-    MYS_C21A = 0xC21A  # Always = 2240? 7/10ths of UH (same as original M4 Volts, but does not change when M4 edited)
+    MYS_C21A = 0xC21A  # Always = 2240? 7/10ths of UH (same as original M4 Volts,
+    #                    but does not change when M4 edited)
     MYS_C21B = 0xC21B  # Always = 1?
-    MYS_C21E = 0xC21E  # Always = 3200? Duplicate of UH(0xC11E)? (also same as original M6 Volts)
+    MYS_C21E = 0xC21E  # Always = 3200? Duplicate of UH(0xC11E)?
+    #                    (also same as original M6 Volts)
     MYS_C21F = 0xC21F  # Always = 1?
 
     MYS_C220 = 0xC220  # Always = 21? Duplicate of IL(0xC120) ?
     MYS_C221 = 0xC221  # Always = 1?
-    MYS_C224 = 0xC224  # Always = 3030? 3/10ths of IH (same as original M2 Current, but does not change when M2 edited)
+    MYS_C224 = 0xC224  # Always = 3030? 3/10ths of IH (same as original M2 Current,
+    #                    but does not change when M2 edited)
     MYS_C225 = 0xC225  # Always = 1?
-    MYS_C22A = 0xC22A  # Always = 7070? 7/10ths of IH (same as original M4 Current, but does not change when M4 edited)
+    MYS_C22A = 0xC22A  # Always = 7070? 7/10ths of IH (same as original M4 Current,
+    #                    but does not change when M4 edited)
     MYS_C22B = 0xC22B  # Always = 1?
-    MYS_C22E = 0xC22E  # Always = 10100? Duplicate of IH(0xC12E)? (also same as original M6 Current)
+    MYS_C22E = 0xC22E  # Always = 10100? Duplicate of IH(0xC12E)?
+    #                    (also same as original M6 Current)
     MYS_C22F = 0xC22F  # Always = 1?
 
 
 class HM305:
+    """ HM305 class """
+
     def __init__(self, device_address=1, fd=None):
         if fd is None:
             fd = serial.Serial("/dev/ttyUSB0", baudrate=9600, timeout=0.5)
@@ -259,7 +285,6 @@ class HM305:
         # self.send(pack)
         # ret = self.receive_packet(4)
         # assert addr, val == ret
-        pass
 
     def read4(self, addr):
         ret = self.read(addr, 2)
@@ -336,10 +361,27 @@ class HM305:
 
     @property
     def hw_model(self):
+        """
+        The ModelID, (Max voltage, Max Current), eg. 3010 is 30v 10A
+        """
         return self.read(0x03)
 
     @property
     def hw_class(self):
+        """
+        The ClassID is a two character ASCII alphanumeric identifier.
+        D3    3-digit display linear DC power supply
+        DF    4-digit display linear DC power supply
+        DP    4-digit display programmable linear DC power supply
+        K3    3-digit display switching DC power supply
+        KF    4-digit display switching DC power supply
+        KC    4-digit display high-power digital control power supply
+        KM    4-digit display high-power switching power supply
+        KP    4-digit display programmable switching DC power supply
+        PL    4-digit display programmable switching DC power supply
+        PT    4-digit display programmable switching DC power supply
+        SP    5-digit display programmable DC power supply
+        """
         c = self.read(0x04)
         return chr((c >> 8) & 0xFF) + chr((c >> 0) & 0xFF)
 
@@ -412,8 +454,8 @@ if __name__ == "__main__":
     print("")
     print("Monitoring Output (Ctrl-C to exit):")
     while True:
-        # TODO Could get roughly 3x sample rate if these were grouped into a single request/response
-        # and unpack from that, but I don't feel like it right now.
+        # TODO Could get roughly 3x sample rate if these were grouped into a single
+        # request/response and unpack from that, but I don't feel like it right now.
         v, i, p = (
             digit_str(hm.v, hm.v_decimals),
             digit_str(hm.i, hm.i_decimals),
